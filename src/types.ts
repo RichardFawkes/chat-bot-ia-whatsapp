@@ -18,4 +18,10 @@ export interface BotConfig {
   anthropicModel: string;
   openaiApiKey: string;
   openaiModel: string;
+  searxngUrl: string;
+}
+
+export interface LlmReply {
+  text: string;
+  imageUrls: string[];
 }

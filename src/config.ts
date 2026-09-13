@@ -41,4 +41,6 @@ export const config: BotConfig = {
 
   openaiApiKey: llmProvider === 'openai' ? requireEnv('OPENAI_API_KEY') : (process.env.OPENAI_API_KEY ?? ''),
   openaiModel: llmProvider === 'openai' ? requireEnv('OPENAI_MODEL') : (process.env.OPENAI_MODEL ?? ''),
+
+  searxngUrl: process.env.SEARXNG_URL ?? '',
 };

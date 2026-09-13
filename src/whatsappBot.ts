@@ -50,8 +50,9 @@ export async function start(): Promise<void> {
     const myNumber = `${sock.user?.id.split(':')[0]}@s.whatsapp.net`;
     const isSelfChat = chatId === myNumber || msg.key.remoteJidAlt === myNumber;
     const isGroup = chatId.endsWith('@g.us');
+    const isBroadcast = chatId.endsWith('@broadcast');
 
-    if (isGroup) return;
+    if (isGroup || isBroadcast) return;
     if (msg.key.fromMe && !isSelfChat) return;
     if (config.onlySelfChat && !isSelfChat) return;
 
@@ -71,8 +72,14 @@ export async function start(): Promise<void> {
     try {
       const history = store.getMessages(chatId);
       const reply = await llm.chat([...history, { role: 'user', content: text }]);
-      store.appendExchange(chatId, text, reply);
-      await sock.sendMessage(chatId, { text: reply });
+      store.appendExchange(chatId, text, reply.text);
+
+      const [imageUrl] = reply.imageUrls;
+      if (imageUrl) {
+        await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: reply.text });
+      } else {
+        await sock.sendMessage(chatId, { text: reply.text });
+      }
     } catch (err) {
       logger.error(err, 'erro ao consultar o LLM');
       await sock.sendMessage(chatId, { text: 'Erro ao consultar o modelo. Tenta de novo em instantes.' });

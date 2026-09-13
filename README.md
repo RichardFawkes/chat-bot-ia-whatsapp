@@ -105,6 +105,36 @@ OPENAI_MODEL=gpt-5.6-luna
 
 Trocar de provedor é só mudar `LLM_PROVIDER` e reiniciar — nenhum outro código muda.
 
+## Busca na internet (opcional)
+
+O bot pode buscar informações atuais e imagens na internet — por exemplo, "manda uma foto de um gato laranja" ou "qual a cotação do dólar hoje" — usando [SearXNG](https://docs.searxng.org), um motor de busca open-source que você roda localmente via Docker (sem depender de API paga de terceiro).
+
+```bash
+docker run -d --name searxng -p 8080:8080 \
+  -v "$(pwd)/searxng-config:/etc/searxng" \
+  -e "BASE_URL=http://localhost:8080/" \
+  -e "INSTANCE_NAME=local-search" \
+  --restart unless-stopped \
+  searxng/searxng:latest
+```
+
+Depois de subir uma vez, edite `searxng-config/settings.yml` e adicione (necessário para a API JSON que o bot usa):
+
+```yaml
+search:
+  formats:
+    - html
+    - json
+```
+
+Reinicie o container (`docker restart searxng`) e configure no `.env`:
+
+```env
+SEARXNG_URL=http://localhost:8080
+```
+
+Sem essa variável preenchida, o bot funciona normalmente — só sem essa ferramenta.
+
 ## Rodando permanente com PM2
 
 Pra manter o bot no ar (reiniciando sozinho se cair, e junto com o boot do sistema):
@@ -141,6 +171,7 @@ src/
 ├── config.ts        # le e valida o .env
 ├── whatsappBot.ts   # conexao Baileys + roteamento de mensagens
 ├── llmClient.ts      # ollama / anthropic / openai por tras de uma interface unica
+├── tools.ts           # busca na internet (SearXNG), chamada via tool-calling
 ├── store.ts          # historico de conversa persistido em disco
 ├── rateLimiter.ts     # limite de mensagens por chat
 ├── logger.ts          # logs estruturados (console + data/bot.log)
