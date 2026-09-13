@@ -16,7 +16,7 @@ interface OllamaChatResponse {
 }
 
 async function callOllama(messages: ChatMessage[]): Promise<LlmReply> {
-  const baseBody = { model: config.ollamaModel, think: false, stream: false };
+  const baseBody = { model: config.ollamaModel, think: false, stream: false, options: { temperature: 0.2 } };
   const tools = toolsEnabled() ? OLLAMA_TOOLS : undefined;
 
   const res1 = await fetch(config.ollamaUrl, {

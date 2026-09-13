@@ -11,6 +11,20 @@ import * as store from './store';
 import * as rateLimiter from './rateLimiter';
 import * as llm from './llmClient';
 
+async function downloadImage(url: string): Promise<Buffer | null> {
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+    });
+    if (!res.ok) return null;
+    return Buffer.from(await res.arrayBuffer());
+  } catch {
+    return null;
+  }
+}
+
 export async function start(): Promise<void> {
   const { state, saveCreds } = await useMultiFileAuthState(path.join(__dirname, '..', 'auth'));
 
@@ -74,9 +88,17 @@ export async function start(): Promise<void> {
       const reply = await llm.chat([...history, { role: 'user', content: text }]);
       store.appendExchange(chatId, text, reply.text);
 
-      const [imageUrl] = reply.imageUrls;
-      if (imageUrl) {
-        await sock.sendMessage(chatId, { image: { url: imageUrl }, caption: reply.text });
+      let imageBuffer: Buffer | null = null;
+      for (const candidateUrl of reply.imageUrls) {
+        imageBuffer = await downloadImage(candidateUrl);
+        if (imageBuffer) break;
+        logger.warn({ candidateUrl }, 'falha ao baixar imagem, tentando proxima');
+      }
+
+      if (imageBuffer) {
+        await sock.sendMessage(chatId, { image: imageBuffer, caption: reply.text });
+      } else if (reply.imageUrls.length > 0) {
+        await sock.sendMessage(chatId, { text: `${reply.text}\n${reply.imageUrls[0]}` });
       } else {
         await sock.sendMessage(chatId, { text: reply.text });
       }

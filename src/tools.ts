@@ -47,7 +47,7 @@ async function buscarNaInternet(query: string, tipo: 'texto' | 'imagem'): Promis
     const imageUrls = data.results
       .map((r) => r.img_src)
       .filter((src): src is string => Boolean(src))
-      .slice(0, 1);
+      .slice(0, 4);
     const text = imageUrls.length
       ? `Encontrei uma imagem para "${query}" e ela ja foi enviada para o usuario automaticamente. Responda so com um comentario curto, sem incluir link ou placeholder de imagem.`
       : `Nao encontrei nenhuma imagem para "${query}". Avise o usuario.`;
