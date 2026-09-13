@@ -28,10 +28,16 @@ interface SearxngResult {
   title: string;
   content?: string;
   img_src?: string;
+  engine?: string;
 }
 interface SearxngResponse {
   results: SearxngResult[];
 }
+
+// bancos de imagem generico (unsplash, pexels) combinam por palavra-chave solta e
+// costumam trazer fotos erradas pra nomes de pessoas/marcas especificas. Preferimos
+// engines que indexam a imagem real (wikipedia, noticias) e deixamos esses por ultimo.
+const STOCK_PHOTO_ENGINES = new Set(['unsplash', 'pexels', 'pixabay']);
 
 async function buscarNaInternet(query: string, tipo: 'texto' | 'imagem'): Promise<ToolResult> {
   const url = new URL('/search', config.searxngUrl);
@@ -44,7 +50,12 @@ async function buscarNaInternet(query: string, tipo: 'texto' | 'imagem'): Promis
   const data = (await res.json()) as SearxngResponse;
 
   if (tipo === 'imagem') {
-    const imageUrls = data.results
+    const ranked = [...data.results].sort((a, b) => {
+      const aStock = STOCK_PHOTO_ENGINES.has(a.engine ?? '') ? 1 : 0;
+      const bStock = STOCK_PHOTO_ENGINES.has(b.engine ?? '') ? 1 : 0;
+      return aStock - bStock;
+    });
+    const imageUrls = ranked
       .map((r) => r.img_src)
       .filter((src): src is string => Boolean(src))
       .slice(0, 4);
