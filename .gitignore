@@ -1,0 +1,8 @@
+node_modules/
+dist/
+auth/
+data/
+.env
+qr.png
+*.log
+*.tsbuildinfo
