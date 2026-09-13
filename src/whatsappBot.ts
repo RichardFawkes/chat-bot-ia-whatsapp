@@ -34,6 +34,16 @@ export async function start(): Promise<void> {
     logger: pino({ level: 'silent' }),
   });
 
+  // Num self-chat, as respostas do PROPRIO bot tambem chegam pelo messages.upsert
+  // (sao fromMe:true, igual as mensagens que voce digita). Sem isso, o bot reprocessa
+  // as proprias respostas como se fossem pedidos novos, entrando em loop.
+  const sentMessageIds = new Set<string>();
+
+  async function send(jid: string, content: Parameters<typeof sock.sendMessage>[1]): Promise<void> {
+    const sent = await sock.sendMessage(jid, content);
+    if (sent?.key.id) sentMessageIds.add(sent.key.id);
+  }
+
   sock.ev.on('creds.update', saveCreds);
 
   sock.ev.on('connection.update', (update) => {
@@ -60,6 +70,7 @@ export async function start(): Promise<void> {
     if (type !== 'notify') return;
     const msg = messages[0] as WAMessage | undefined;
     if (!msg?.message || !msg.key.remoteJid) return;
+    if (msg.key.id && sentMessageIds.delete(msg.key.id)) return;
 
     const chatId = msg.key.remoteJid;
     const myNumber = `${sock.user?.id.split(':')[0]}@s.whatsapp.net`;
@@ -76,7 +87,7 @@ export async function start(): Promise<void> {
 
     if (!rateLimiter.allow(chatId)) {
       logger.warn({ chatId }, 'rate limit atingido');
-      await sock.sendMessage(chatId, {
+      await send(chatId, {
         text: 'Calma ai, muitas mensagens em pouco tempo. Tenta de novo em 1 minuto.',
       });
       return;
@@ -105,15 +116,15 @@ export async function start(): Promise<void> {
       }
 
       if (imageBuffer) {
-        await sock.sendMessage(chatId, { image: imageBuffer, caption: reply.text });
+        await send(chatId, { image: imageBuffer, caption: reply.text });
       } else if (reply.imageUrls.length > 0) {
-        await sock.sendMessage(chatId, { text: `${reply.text}\n${reply.imageUrls[0]}` });
+        await send(chatId, { text: `${reply.text}\n${reply.imageUrls[0]}` });
       } else {
-        await sock.sendMessage(chatId, { text: reply.text });
+        await send(chatId, { text: reply.text });
       }
     } catch (err) {
       logger.error(err, 'erro ao consultar o LLM');
-      await sock.sendMessage(chatId, { text: 'Erro ao consultar o modelo. Tenta de novo em instantes.' });
+      await send(chatId, { text: 'Erro ao consultar o modelo. Tenta de novo em instantes.' });
     }
   });
 }
