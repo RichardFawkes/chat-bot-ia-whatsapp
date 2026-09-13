@@ -12,6 +12,8 @@ import * as rateLimiter from './rateLimiter';
 import * as llm from './llmClient';
 import * as tools from './tools';
 
+const MIN_IMAGE_BYTES = 8_000; // abaixo disso costuma ser icone/pixel de rastreamento/imagem quebrada, nao foto de verdade
+
 async function downloadImage(url: string): Promise<Buffer | null> {
   try {
     const res = await fetch(url, {
@@ -20,7 +22,14 @@ async function downloadImage(url: string): Promise<Buffer | null> {
       },
     });
     if (!res.ok) return null;
-    return Buffer.from(await res.arrayBuffer());
+
+    const contentType = res.headers.get('content-type') ?? '';
+    if (!contentType.startsWith('image/')) return null;
+
+    const buffer = Buffer.from(await res.arrayBuffer());
+    if (buffer.byteLength < MIN_IMAGE_BYTES) return null;
+
+    return buffer;
   } catch {
     return null;
   }
@@ -118,7 +127,8 @@ export async function start(): Promise<void> {
       if (imageBuffer) {
         await send(chatId, { image: imageBuffer, caption: reply.text });
       } else if (reply.imageUrls.length > 0) {
-        await send(chatId, { text: `${reply.text}\n${reply.imageUrls[0]}` });
+        logger.warn({ chatId, tentativas: reply.imageUrls.length }, 'todas as imagens candidatas falharam');
+        await send(chatId, { text: 'Encontrei resultados mas nenhuma imagem carregou direito agora. Tenta de novo em instantes.' });
       } else {
         await send(chatId, { text: reply.text });
       }
