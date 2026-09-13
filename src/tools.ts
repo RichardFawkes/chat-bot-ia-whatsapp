@@ -69,3 +69,13 @@ export async function executeTool(name: string, args: { query: string; tipo: 'te
   if (name !== TOOL_DEFINITION.name) throw new Error(`ferramenta desconhecida: ${name}`);
   return buscarNaInternet(args.query, args.tipo);
 }
+
+const IMAGE_REQUEST_REGEX = /\b(foto|fotos|imagem|imagens|figura|print)\b/i;
+
+export function looksLikeImageRequest(text: string): boolean {
+  return IMAGE_REQUEST_REGEX.test(text);
+}
+
+export async function forceImageSearch(userText: string): Promise<ToolResult> {
+  return buscarNaInternet(userText, 'imagem');
+}

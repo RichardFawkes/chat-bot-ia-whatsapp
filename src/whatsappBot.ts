@@ -10,6 +10,7 @@ import { logger } from './logger';
 import * as store from './store';
 import * as rateLimiter from './rateLimiter';
 import * as llm from './llmClient';
+import * as tools from './tools';
 
 async function downloadImage(url: string): Promise<Buffer | null> {
   try {
@@ -86,6 +87,14 @@ export async function start(): Promise<void> {
     try {
       const history = store.getMessages(chatId);
       const reply = await llm.chat([...history, { role: 'user', content: text }]);
+
+      if (reply.imageUrls.length === 0 && tools.toolsEnabled() && tools.looksLikeImageRequest(text)) {
+        logger.warn({ chatId }, 'modelo nao chamou busca de imagem, forcando fallback');
+        const forced = await tools.forceImageSearch(text);
+        reply.imageUrls = forced.imageUrls;
+        if (forced.imageUrls.length === 0) reply.text = 'Nao encontrei nenhuma imagem pra isso.';
+      }
+
       store.appendExchange(chatId, text, reply.text);
 
       let imageBuffer: Buffer | null = null;
